@@ -1,0 +1,4 @@
+pytest
+
+pg8000
+awsglue

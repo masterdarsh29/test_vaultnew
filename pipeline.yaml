@@ -1,0 +1,83 @@
+resources:
+  - name: git-repo
+    type: git
+    source:
+      uri: https://github.com/masterdarsh29/TAsk6-concourse
+      branch: main
+ 
+jobs:
+  - name: scrape-and-store
+    plan:
+      - get: git-repo
+        trigger: true
+      - task: fetch-credentials
+        config:
+          platform: linux
+          image_resource:
+            type: docker-image
+            source:
+              repository: hashicorp/vault
+              tag: latest
+          inputs:
+            - name: git-repo
+          run:
+            path: /bin/sh
+            args:
+              - -c
+              - |
+                chmod +x ./git-repo/credential.sh
+                ./git-repo/credential.sh
+          outputs:
+            - name: credentials
+ 
+      - task: scrape-task
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: python
+              tag: "3.9"
+          inputs:
+            - name: git-repo
+            - name: credentials
+          run:
+            path: /bin/bash
+            args:
+              - -c
+              - |
+                cd git-repo
+                pip install -r requirements.txt
+                EMAIL=$(cat ../credentials/email.txt)
+                PASSWORD=$(cat ../credentials/password.txt)
+                echo "$EMAIL"
+                echo "$PASSWORD"
+                python Test6.py --email "$EMAIL" --password "$PASSWORD"
+
+      # - task: csv
+      #   config:
+      #     platform: linux
+      #     image_resource:
+      #       type: registry-image
+      #       source:
+      #         repository: python
+      #         tag: "3.9"
+      #     inputs:
+      #       - name: git-repo
+      #       - name: credentials
+      #     run:
+      #       path: /bin/bash
+      #       args:
+      #         - -c
+      #         - |
+      #           cd git-repo
+      #           pip install -r requirements.txt
+      #           EMAIL=$(cat ../credentials/email.txt)
+      #           PASSWORD=$(cat ../credentials/password.txt)
+      #           echo "$EMAIL"
+      #           echo "$PASSWORD"
+      #           python Test6.py --email "$EMAIL" --password "$PASSWORD"
+      #     outputs:
+      #       - name: profit_loss_data
+
+      
