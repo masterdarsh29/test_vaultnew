@@ -1,0 +1,130 @@
+select * from pp_profit_loss_data 
+
+
+SELECT column_name, data_type
+FROM information_schema.columns
+WHERE table_schema = 'public' AND
+table_name ='pp_profit_loss_data';
+
+
+
+select * from pp_profit_loss_data_audit
+CREATE TABLE pp_profit_loss_data_audit (
+    audit_id SERIAL PRIMARY KEY,
+    operation_type VARCHAR(10) NOT NULL, -- 'INSERT', 'UPDATE', 'DELETE',  
+    changed_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    changed_by TEXT DEFAULT CURRENT_USER,
+    Year TEXT,
+    Sales_plus DOUBLE PRECISION,
+    Expenses_plus DOUBLE PRECISION,
+    Operating_Profit DOUBLE PRECISION,
+    OPM_percent DOUBLE PRECISION,
+    Other_Income_plus DOUBLE PRECISION,
+    Interest DOUBLE PRECISION,
+    Depreciation DOUBLE PRECISION,
+    Profit_before_tax DOUBLE PRECISION,
+    Tax_percent DOUBLE PRECISION,
+    Net_Profit_plus DOUBLE PRECISION,
+    EPS_in_Rs DOUBLE PRECISION,
+    Dividend_Payout_percent DOUBLE precision,
+    Company_id TEXT
+);
+
+drop table profit_loss_data_audit
+-----------------------------------------------------------------------------------------------
+
+
+
+INSERT INTO pp_profit_loss_data_audit (
+    operation_type,
+    changed_at,
+    changed_by,
+    Year,
+    Sales_plus,
+    Expenses_plus,
+    Operating_Profit,
+    OPM_percent,
+    Other_Income_plus,
+    Interest,
+    Depreciation,
+    Profit_before_tax,
+    Tax_percent,
+    Net_Profit_plus,
+    EPS_in_Rs,
+    Dividend_Payout_percent,
+    Company_id
+)
+SELECT
+    'INSERT' AS operation_type,  -- Marking as initial load
+    CURRENT_TIMESTAMP AS changed_at,
+    CURRENT_USER AS changed_by,
+    "year",
+    "Sales",
+    "Expenses",
+    "Operating_Profit",
+    "OPM_%",
+    "Other_Income",
+    "Interest",
+    "Depreciation",
+    "Profit_before_tax",
+    "Tax_%",
+    "Net_Profit",
+    "EPS_in_Rs",
+    "Dividend_Payout_%",
+    "company_id"
+FROM pp_profit_loss_data;
+
+
+
+DELETE FROM profit_loss_data
+WHERE Year IN ('Mar 2025', 'Jun 2025');
+---------------------------------------------------------------------------------------------
+
+
+CREATE OR REPLACE FUNCTION pp_profit_loss_data_log()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF (TG_OP = 'INSERT') THEN
+        INSERT INTO pp_profit_loss_data_audit (operation_type, Year, Sales_plus, Expenses_plus, Operating_Profit, OPM_percent, Other_Income_plus, Interest, Depreciation, Profit_before_tax, Tax_percent, Net_Profit_plus, EPS_in_Rs, Dividend_Payout_percent, Company_id)
+        VALUES ('INSERT', NEW."year", NEW."Sales", NEW."Expenses", NEW."Operating_Profit", NEW."OPM_%", NEW."Other_Income", NEW."Interest", NEW."Depreciation", NEW."Profit_before_tax", NEW."Tax_%", NEW."Net_Profit", NEW."EPS_in_Rs", NEW."Dividend_Payout_%", NEW."company_id");
+        RETURN NEW;
+    ELSIF (TG_OP = 'UPDATE') THEN
+        INSERT INTO pp_profit_loss_data_audit (operation_type, Year, Sales_plus, Expenses_plus, Operating_Profit, OPM_percent, Other_Income_plus, Interest, Depreciation, Profit_before_tax, Tax_percent, Net_Profit_plus, EPS_in_Rs, Dividend_Payout_percent, Company_id)
+        VALUES ('UPDATE', NEW."year", NEW."Sales", NEW."Expenses", NEW."Operating_Profit", NEW."OPM_%", NEW."Other_Income", NEW."Interest", NEW."Depreciation", NEW."Profit_before_tax", NEW."Tax_%", NEW."Net_Profit", NEW."EPS_in_Rs", NEW."Dividend_Payout_%", NEW."company_id");
+        RETURN NEW;
+    ELSIF (TG_OP = 'DELETE') THEN
+        INSERT INTO pp_profit_loss_data_audit (operation_type, Year, Sales_plus, Expenses_plus, Operating_Profit, OPM_percent, Other_Income_plus, Interest, Depreciation, Profit_before_tax, Tax_percent, Net_Profit_plus, EPS_in_Rs, Dividend_Payout_percent, Company_id)
+        VALUES ('DELETE', OLD."year", OLD."Sales", NEW."Expenses", OLD."Operating_Profit", OLD."OPM_%", OLD."Other_Income", OLD."Interest", OLD."Depreciation", OLD."Profit_before_tax", OLD."Tax_%", OLD."Net_Profit", OLD."EPS_in_Rs", OLD."Dividend_Payout_%",NEW."company_id");
+        RETURN OLD;
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+ 
+CREATE TRIGGER pp_profit_loss_data_trigger
+AFTER INSERT OR UPDATE OR DELETE ON pp_profit_loss_data
+FOR EACH ROW EXECUTE FUNCTION pp_profit_loss_data_log();
+
+
+CREATE TABLE pp_profit_loss_data_sink(
+    Year text ,
+    Sales_plus DOUBLE PRECISION,
+    Expenses_plus DOUBLE PRECISION,
+    Operating_Profit DOUBLE PRECISION,
+    OPM_Percent DOUBLE PRECISION,
+    Other_Income_plus DOUBLE PRECISION,
+    Interest DOUBLE PRECISION,
+    Depreciation DOUBLE PRECISION,
+    Profit_before_tax DOUBLE PRECISION,
+    Tax_Percent DOUBLE PRECISION,
+    Net_Profit_plus DOUBLE PRECISION,
+    EPS_in_Rs DOUBLE PRECISION,
+    Dividend_Payout_Percent DOUBLE precision,
+    Company_id TEXT
+);
+
+select * from tell_profit_loss_data_sink;
+ 
+
+
+DELETE FROM tell_profit_loss_data_sink
+WHERE "year" = 'TTM';
